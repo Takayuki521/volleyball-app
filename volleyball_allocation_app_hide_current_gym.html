@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>体育館割り振りアプリ</title>
+  <style>
+    :root {
+      --bg: #fff7ed;
+      --card: #ffffff;
+      --main: #f97316;
+      --main-soft: #ffedd5;
+      --border: #fed7aa;
+      --text: #1f2937;
+      --sub: #64748b;
+      --dark: #0f172a;
+      --warn-bg: #fef3c7;
+      --warn-border: #f59e0b;
+      --warn-text: #78350f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      padding: 14px;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 14px; }
+    .card { background: var(--card); border-radius: 22px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    h1 { font-size: 24px; margin: 0; line-height: 1.25; }
+    h2 { font-size: 18px; margin: 0 0 10px; }
+    .sub { color: var(--sub); font-size: 13px; margin-top: 4px; line-height: 1.5; }
+    .grid { display: grid; gap: 14px; }
+    @media (min-width: 760px) {
+      .grid-2 { grid-template-columns: 1fr 1fr; }
+      .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    }
+    .top { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .input-row { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 8px; margin-bottom: 9px; }
+    label, strong { font-weight: 750; }
+    input[type="text"], select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid #e5e7eb;
+      font-size: 16px;
+      background: white;
+      min-height: 46px;
+    }
+    .btn {
+      padding: 13px 14px;
+      border-radius: 16px;
+      border: none;
+      background: var(--main);
+      color: white;
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+      width: 100%;
+      min-height: 48px;
+    }
+    .btn.secondary { background: white; color: var(--text); border: 1px solid #e5e7eb; width: auto; }
+    .check-row { display: flex; gap: 10px; align-items: center; border: 1px solid var(--border); border-radius: 16px; padding: 10px; margin-bottom: 10px; background: white; }
+    .check-row input { width: 22px; height: 22px; }
+    .rule-box {
+      background: var(--main-soft);
+      color: #7c2d12;
+      border: 1px solid #fdba74;
+      border-radius: 18px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+    .gym-card { border: 1px solid var(--border); border-radius: 20px; padding: 13px; background: white; }
+    .gym-title { font-weight: 900; font-size: 18px; }
+    .gym-time { color: var(--sub); font-size: 13px; margin-bottom: 10px; }
+    .team-pill {
+      background: var(--main-soft);
+      border-radius: 15px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-weight: 750;
+    }
+    .team-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .move-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+    .move-buttons button {
+      border: 1px solid #fdba74;
+      background: white;
+      color: #9a3412;
+      border-radius: 12px;
+      padding: 9px 6px;
+      font-weight: 800;
+      font-size: 12px;
+    }
+    .total { color: var(--sub); font-size: 13px; margin-top: 8px; }
+    .warning { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 18px; padding: 12px; color: var(--warn-text); font-size: 14px; line-height: 1.6; margin-top: 12px; }
+    .warning ul { margin: 6px 0 0 18px; padding: 0; }
+    pre { background: var(--dark); color: white; border-radius: 20px; padding: 14px; white-space: pre-wrap; line-height: 1.7; min-height: 220px; font-size: 14px; overflow-x: auto; }
+    .mini-note { font-size: 12px; color: var(--sub); line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card top">
+      <div>
+        <h1>🏐 体育館割り振りアプリ</h1>
+        <div class="sub">人数入力 → 自動割り振り → 結果内ボタンで移動 → LINE用コピー</div>
+      </div>
+      <button class="btn secondary" onclick="resetAll()">リセット</button>
+    </section>
+
+    <section class="grid grid-2">
+      <div class="card">
+        <h2>1. 人数入力</h2>
+        <div class="sub">休みは「0」「休み」または空欄。範囲は「5-6」「5〜6」どちらでもOK。</div>
+        <div id="teamInputs" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>2. 使えない体育館</h2>
+        <div id="gymChecks"></div>
+
+        <label class="check-row">
+          <input type="checkbox" id="allowUnder12" onchange="render()" />
+          <span><strong>12人未満も許可する</strong><br><small>実験配置・2チームずつ配置を試すとき用</small></span>
+        </label>
+
+        <div class="rule-box">
+          <strong>自動ルール</strong><br>
+          ・使える体育館はできるだけ全部使う<br>
+          ・管理チームを優先配置<br>
+          ・春住小学校にはbent必須<br>
+          ・春住はできれば2チーム、少人数寄せ
+        </div>
+
+        <button class="btn" onclick="runAuto()">自動割り振り</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. 割り振り結果</h2>
+      <div id="resultCards" class="grid grid-3"></div>
+      <div id="warnings"></div>
+    </section>
+
+    <section class="card">
+      <div class="top">
+        <div>
+          <h2 style="margin-bottom:0;">4. コピペ用出力</h2>
+          <div class="sub">いつもの連絡用フォーマット</div>
+        </div>
+        <button class="btn secondary" onclick="copyOutput()">コピー</button>
+      </div>
+      <pre id="outputBox"></pre>
+      <div class="mini-note">コピーできない場合は、黒い出力欄を長押ししてコピーしてください。</div>
+    </section>
+  </div>
+
+  <script>
+    const TEAMS = ["Active", "HOZUKI", "CompacT", "MUGEN", "LIB'ER'TY", "bent", "RUSH", "DAIDAI"];
+
+    const GYMS = {
+      higashiwakahisa: { label: "東若久小学校", short: "東若久", time: "13:00〜18:00", manager: "MUGEN", min: 12, max: 49 },
+      toko: { label: "東光小学校", short: "東光", time: "13:00〜17:30", manager: "Active", min: 12, max: 24 },
+      haruzumi: { label: "春住小学校", short: "春住", time: "13:30〜17:00", manager: "bent", min: 12, max: 18 },
+    };
+
+    const GYM_ORDER = ["higashiwakahisa", "toko", "haruzumi"];
+    const DEFAULT_VALUES = { Active: "", HOZUKI: "", CompacT: "", MUGEN: "", "LIB'ER'TY": "", bent: "", RUSH: "", DAIDAI: "" };
+
+    let values = { ...DEFAULT_VALUES };
+    let unavailable = { higashiwakahisa: false, toko: false, haruzumi: false };
+    let manualPlan = null;
+
+    function normalizeRangeText(value) {
+      return String(value || "").trim().replace(/[－―ー–—-]/g, "〜").replace(/~/g, "〜");
+    }
+
+    function parseRange(value) {
+      const raw = normalizeRangeText(value);
+      if (!raw || raw === "0" || raw === "休み") return null;
+      if (raw.includes("〜")) {
+        const nums = raw.split("〜").map(v => Number(v.trim()));
+        if (nums.every(Number.isFinite)) {
+          const min = Math.min(...nums);
+          const max = Math.max(...nums);
+          return { min, max, text: `${min}〜${max}` };
+        }
+      }
+      const n = Number(raw);
+      if (Number.isFinite(n)) return { min: n, max: n, text: `${n}` };
+      return null;
+    }
+
+    function getTeamData() {
+      return TEAMS.map(key => {
+        const parsed = parseRange(values[key]);
+        return parsed ? { key, ...parsed } : null;
+      });
+    }
+
+    function sumTeams(teams) {
+      return teams.reduce((acc, t) => ({ min: acc.min + t.min, max: acc.max + t.max }), { min: 0, max: 0 });
+    }
+
+    function clonePlan(plan) {
+      const next = {};
+      GYM_ORDER.forEach(g => next[g] = [...(plan[g] || [])]);
+      return next;
+    }
+
+    function planScore(plan, availableGyms) {
+      let score = 0;
+      for (const gymKey of availableGyms) {
+        const gym = GYMS[gymKey];
+        const teams = plan[gymKey] || [];
+        const total = sumTeams(teams);
+        if (teams.length === 0) score -= 800;
+        if (teams.some(t => t.key === gym.manager)) score += 250;
+        else score -= 250;
+        if (total.min < gym.min) score -= (gym.min - total.min) * 60;
+        if (total.max > gym.max) score -= (total.max - gym.max) * 45;
+        if (teams.length >= 2 && teams.length <= 3) score += 90;
+        if (teams.length === 1) score -= 80;
+        if (teams.length >= 4) score -= (teams.length - 3) * 45;
+        if (gymKey === "haruzumi") {
+          if (teams.some(t => t.key === "bent")) score += 350;
+          else score -= 600;
+          if (teams.length === 2) score += 150;
+          if (teams.length === 3) score += 70;
+          if (teams.length > 3) score -= 200;
+          score -= total.max * 3;
+        }
+      }
+      return score;
+    }
+
+    function autoAllocate() {
+      const availableGyms = GYM_ORDER.filter(g => !unavailable[g]);
+      const teams = getTeamData().filter(Boolean);
+      const plan = {};
+      GYM_ORDER.forEach(g => plan[g] = []);
+      if (availableGyms.length === 0) return plan;
+
+      const remaining = new Map(teams.map(t => [t.key, t]));
+
+      for (const gymKey of availableGyms) {
+        const manager = GYMS[gymKey].manager;
+        if (remaining.has(manager)) {
+          plan[gymKey].push(remaining.get(manager));
+          remaining.delete(manager);
+        }
+      }
+
+      const rest = [...remaining.values()].sort((a, b) => b.max - a.max);
+      for (const team of rest) {
+        let bestGym = availableGyms[0];
+        let bestScore = -Infinity;
+        for (const gymKey of availableGyms) {
+          const trial = clonePlan(plan);
+          trial[gymKey].push(team);
+          const score = planScore(trial, availableGyms);
+          if (score > bestScore) {
+            bestScore = score;
+            bestGym = gymKey;
+          }
+        }
+        plan[bestGym].push(team);
+      }
+      return plan;
+    }
+
+    function getCurrentPlan() {
+      return manualPlan || autoAllocate();
+    }
+
+    function getWarnings(plan) {
+      const allowUnder12 = document.getElementById("allowUnder12")?.checked;
+      const warnings = [];
+      const availableGyms = GYM_ORDER.filter(g => !unavailable[g] && plan[g]?.length);
+      for (const gymKey of availableGyms) {
+        const gym = GYMS[gymKey];
+        const teams = plan[gymKey];
+        const total = sumTeams(teams);
+        if (!teams.some(t => t.key === gym.manager)) warnings.push(`${gym.label}に管理チーム（${gym.manager}）が入っていません。`);
+        if (!allowUnder12 && total.min < 12) warnings.push(`${gym.label}が12人未満になる可能性があります。`);
+        if (gymKey === "haruzumi" && total.max > 18) warnings.push(`春住小学校が18人を超える可能性があります。`);
+        if (gymKey === "haruzumi" && !teams.some(t => t.key === "bent")) warnings.push(`春住小学校にはbentを入れるルールです。`);
+      }
+      return warnings;
+    }
+
+    function formatOutput(plan) {
+      return GYM_ORDER
+        .filter(key => !unavailable[key] && plan[key]?.length)
+        .map(key => {
+          const gym = GYMS[key];
+          const lines = [`${gym.label} ${gym.time}`, ...plan[key].map(t => `${t.key}（${t.text}）`)];
+          return lines.join("\n");
+        })
+        .join("\n\n");
+    }
+
+    function render() {
+      const plan = getCurrentPlan();
+      const availableGyms = GYM_ORDER.filter(g => !unavailable[g]);
+      const resultCards = document.getElementById("resultCards");
+      resultCards.innerHTML = availableGyms.map(gymKey => {
+        const gym = GYMS[gymKey];
+        const teams = plan[gymKey] || [];
+        const total = sumTeams(teams);
+        const teamHtml = teams.length
+          ? teams.map(t => `
+              <div class="team-pill">
+                <div class="team-head"><span>${t.key}（${t.text}）</span></div>
+                <div class="move-buttons">
+                  ${availableGyms.filter(g => g !== gymKey).map(g => `<button type="button" onclick="moveTeamToGymByIndex(${TEAMS.indexOf(t.key)},'${g}')">${GYMS[g].short}</button>`).join("")}
+                </div>
+              </div>
+            `).join("")
+          : `<div style="color:#94a3b8;">未配置</div>`;
+        const totalText = total.min === total.max ? total.min : `${total.min}〜${total.max}`;
+        return `
+          <div class="gym-card">
+            <div class="gym-title">${gym.label}</div>
+            <div class="gym-time">${gym.time}</div>
+            ${teamHtml}
+            <div class="total">目安：${totalText}人</div>
+          </div>
+        `;
+      }).join("");
+
+      const warnings = getWarnings(plan);
+      document.getElementById("warnings").innerHTML = warnings.length
+        ? `<div class="warning"><strong>⚠ 確認ポイント</strong><ul>${warnings.map(w => `<li>${w}</li>`).join("")}</ul></div>`
+        : "";
+      document.getElementById("outputBox").textContent = formatOutput(plan);
+    }
+
+    function initInputs() {
+      const inputArea = document.getElementById("teamInputs");
+      inputArea.innerHTML = TEAMS.map(key => `
+        <div class="input-row">
+          <strong>${key}</strong>
+          <input type="text" id="team_${key}" value="${values[key] || ""}" placeholder="例 6 / 5-7 / 休み">
+        </div>
+      `).join("");
+
+      TEAMS.forEach(key => {
+        document.getElementById(`team_${key}`).addEventListener("input", (e) => {
+          values[key] = e.target.value;
+          manualPlan = null;
+          render();
+        });
+      });
+    }
+
+    function initGymChecks() {
+      const area = document.getElementById("gymChecks");
+      area.innerHTML = GYM_ORDER.map(key => `
+        <label class="check-row">
+          <input type="checkbox" id="gym_${key}">
+          <span><strong>${GYMS[key].label}</strong><br><small>${GYMS[key].time} / 管理：${GYMS[key].manager}</small></span>
+        </label>
+      `).join("");
+
+      GYM_ORDER.forEach(key => {
+        const input = document.getElementById(`gym_${key}`);
+        input.checked = unavailable[key];
+        input.addEventListener("change", (e) => {
+          unavailable[key] = e.target.checked;
+          manualPlan = null;
+          render();
+        });
+      });
+    }
+
+    function runAuto() {
+      manualPlan = autoAllocate();
+      render();
+    }
+
+    function resetAll() {
+      values = { ...DEFAULT_VALUES };
+      unavailable = { higashiwakahisa: false, toko: false, haruzumi: false };
+      manualPlan = null;
+      document.getElementById("allowUnder12").checked = false;
+      initInputs();
+      initGymChecks();
+      render();
+    }
+
+    function getTeamByKey(key) {
+      return getTeamData().find(t => t && t.key === key) || null;
+    }
+
+    function moveTeamToGymByIndex(teamIndex, toGym) {
+      const teamKey = TEAMS[teamIndex];
+      moveTeamToGym(teamKey, toGym);
+    }
+
+    function moveTeamToGym(teamKey, toGym) {
+      const team = getTeamByKey(teamKey);
+      if (!team || !toGym) return;
+      const next = clonePlan(getCurrentPlan());
+      GYM_ORDER.forEach(g => {
+        next[g] = next[g].filter(t => t.key !== teamKey);
+      });
+      next[toGym].push(team);
+      manualPlan = next;
+      render();
+    }
+
+    async function copyOutput() {
+      const text = document.getElementById("outputBox").textContent;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const textArea = document.createElement("textarea");
+          textArea.value = text;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-9999px";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textArea);
+        }
+        alert("コピーしました！");
+      } catch (e) {
+        alert("コピーできませんでした。黒い出力欄を長押ししてコピーしてください。");
+      }
+    }
+
+    initInputs();
+    initGymChecks();
+    render();
+  </script>
+</body>
+</html>
